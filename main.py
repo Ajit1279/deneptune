@@ -4,9 +4,10 @@
 # rawmessages schema - single column:  message:string
 # TODO - break out based on schema
 import base64
+import os
 from google.cloud import bigquery
 import json
-from google.cloud import pubsub_v1
+#from google.cloud import pubsub_v1
 import apache_beam as beam
 from apache_beam.options.pipeline_options import PipelineOptions, StandardOptions
 import argparse
@@ -15,7 +16,7 @@ import argparse
 table_id = "neptune.rawmessages"
 
 publisher = pubsub_v1.PublisherClient()
-topic_path = publisher.topic_path($GOOGLE_CLOUD_PROJECT, 'np-activities')
+topic_path = publisher.topic_path('$GOOGLE_CLOUD_PROJECT', 'np-activities')
 
 def pubsub_to_bigquery(event, context):
     pubsub_message = base64.b64decode(event['data']).decode('utf-8')
