@@ -10,12 +10,10 @@ else
     gcloud storage buckets create gs://$GOOGLE_CLOUD_PROJECT"-bucket" --soft-delete-duration=0
     bq mk --location=US --dataset neptune
     bq mk --schema message:STRING -t neptune.rawmessages
-    gcloud pubsub topics create np-activities-topic
-    gcloud pubsub subscriptions create np-activities-subscription --topic np-activities-topic
+    gcloud pubsub topics create neptune-activities
+    gcloud pubsub subscriptions create neptune-activities-test --topic neptune-activities
 
-    #mkdir np-activity && cd np-activity
-
-    bq mk --table neptune.np_activities \
+    bq mk --table neptune.np_test \
     id:STRING,ipaddress:STRING,action:STRING,accountnumber:STRING,actionid:INTEGER,name:STRING,actionby:STRING
 
 fi

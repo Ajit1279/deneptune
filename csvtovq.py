@@ -44,7 +44,7 @@ def run(argv=None):
         | "ReadFromPubSub" >> beam.io.ReadFromPubSub(topic=known_args.input_topic)
         | "ParseMessage" >> beam.FlatMap(parse_csv_message)
         | "WriteToBigQuery" >> beam.io.WriteToBigQuery(
-            table="np_activities",
+            table="np_test",
             dataset="neptune",
             project=known_args.project,
             schema={
