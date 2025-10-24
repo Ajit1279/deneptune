@@ -17,7 +17,7 @@ else
       storage.googleapis.com \
       dataflow.googleapis.com \
       run.googleapis.com \
-      cloudbuild.googleapis.com \ 
+      cloudbuild.googleapis.com \
       eventarc.googleapis.com \
       artifactregistry.googleapis.com
 
