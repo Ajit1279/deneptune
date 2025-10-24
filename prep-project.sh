@@ -28,4 +28,8 @@ else
     bq mk --table neptune.np_test \
     id:STRING,ipaddress:STRING,action:STRING,accountnumber:STRING,actionid:INTEGER,name:STRING,actionby:STRING
 
+    REGION="us-central1"
+    TOPIC_NAME="neptune-activities"
+    PROJECT_ID=$GOOGLE_CLOUD_PROJECT
+
 fi
