@@ -6,8 +6,8 @@
 import base64
 from google.cloud import bigquery
 from google.cloud import pubsub_v1
-import apache_beam as beam
-from apache_beam.options.pipeline_options import PipelineOptions, StandardOptions
+#import apache_beam as beam
+#from apache_beam.options.pipeline_options import PipelineOptions, StandardOptions
 import argparse
 
 table_id = "neptune.rawmessages"
