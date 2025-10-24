@@ -8,6 +8,10 @@ if [[ -z "${GOOGLE_CLOUD_PROJECT}" ]]; then
 else
     echo "Project Name: $GOOGLE_CLOUD_PROJECT"
     gcloud storage buckets create gs://$GOOGLE_CLOUD_PROJECT"-bucket" --soft-delete-duration=0
+    
+    gcloud services disable dataflow.googleapis.com --force
+    gcloud services enable dataflow.googleapis.com
+    
     bq mk --location=US --dataset neptune
     bq mk --schema message:STRING -t neptune.rawmessages
     gcloud pubsub topics create neptune-activities
