@@ -15,6 +15,9 @@ echo "Region: $REGION"
 echo "Topic: $TOPIC_NAME"
 echo "Function directory: $FUNCTION_DIR"
 
+mkdir ~/$FUNCTION_DIR
+cd ~/$FUNCTION_DIR
+
 # ------------------------------
 # 1️ Install dependencies locally (optional)
 # ------------------------------
