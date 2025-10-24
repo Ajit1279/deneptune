@@ -15,7 +15,11 @@ else
       pubsub.googleapis.com \
       bigquery.googleapis.com \
       storage.googleapis.com \
-      dataflow.googleapis.com 
+      dataflow.googleapis.com \
+      run.googleapis.com \
+      cloudbuild.googleapis.com \ 
+      eventarc.googleapis.com \
+      artifactregistry.googleapis.com
 
     #gcloud services disable dataflow.googleapis.com --force
     #gcloud services enable dataflow.googleapis.com
