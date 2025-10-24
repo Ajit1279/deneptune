@@ -15,8 +15,8 @@ echo "Region: $REGION"
 echo "Topic: $TOPIC_NAME"
 echo "Function directory: $FUNCTION_DIR"
 
-mkdir ~/$FUNCTION_DIR
-cd ~/$FUNCTION_DIR
+rm -rf $FUNCTION_DIR
+mkdir $FUNCTION_DIR
 cp main.py requirements.txt $FUNCTION_DIR/
 
 # ------------------------------
