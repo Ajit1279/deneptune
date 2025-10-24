@@ -8,20 +8,21 @@ if [[ -z "${GOOGLE_CLOUD_PROJECT}" ]]; then
 else
     echo "Project Name: $GOOGLE_CLOUD_PROJECT"
 
-PROJECT_ID=$(gcloud config get-value project)
-SA_NAME="neptunesa"
+    PROJECT_ID=$(gcloud config get-value project)
+    SA_NAME="neptunesa"
+    DATASET="neptune"
 
 # Create service account
     gcloud iam service-accounts create $SA_NAME --display-name="Neptune Function Service Account"
 
 # Grant BigQuery Data Editor to this service account
     gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/bigquery.dataEditor"
+    --role="roles/bigquery.dataEditor"
 
 # Grant Pub/Sub Subscriber (so function can receive messages)
     gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com" \
-  --role="roles/pubsub.subscriber"
+    --member="serviceAccount:$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com" \
+    --role="roles/pubsub.subscriber"
 
     gcloud storage buckets create gs://$GOOGLE_CLOUD_PROJECT"-bucket" --soft-delete-duration=0
     
@@ -40,10 +41,11 @@ SA_NAME="neptunesa"
     #gcloud services disable dataflow.googleapis.com --force
     #gcloud services enable dataflow.googleapis.com
     
-    bq mk --location=US --dataset neptune
-    bq mk --schema message:STRING -t neptune.rawmessages
+    bq mk --location=US --dataset $DATASET 
 
-    bq mk --table neptune.parsedmessages \
+    bq mk --schema message:STRING -t $DATASET.rawmessages
+
+    bq mk --table $DATASET.parsedmessages \
     id:STRING,ipaddress:STRING,action:STRING,accountnumber:STRING,actionid:INTEGER,name:STRING,actionby:STRING
 
     gcloud pubsub topics create neptune-activities
@@ -55,6 +57,13 @@ SA_NAME="neptunesa"
     --topic projects/moonbank-neptune/topics/activities \
     --push-endpoint=https://pubsub.googleapis.com/v1/projects/$GOOGLE_CLOUD_PROJECT/topics/neptune-activities:publish
 
-
+    gcloud iam service-accounts add-iam-policy-binding \
+    $SA_NAME@$PROJECT_ID.iam.gserviceaccount.com \
+    --member="serviceAccount:$PROJECT_ID@appspot.gserviceaccount.com" \
+    --role="roles/iam.serviceAccountTokenCreator"
+  
+    bq update --dataset \
+    --add_iam_member="serviceAccount:$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com:roles/bigquery.dataEditor" \
+    $DATASET:neptune
 
 fi

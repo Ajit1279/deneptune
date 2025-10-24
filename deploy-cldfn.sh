@@ -29,8 +29,9 @@ sudo pip3 install -r $FUNCTION_DIR/requirements.txt
 # 2 Deploy 1st gen Cloud Function
 # ------------------------------
 echo "Deploying Cloud Function (1st gen)..."
+
 gcloud functions deploy $FUNCTION_NAME \
-  --project=$PROJECT_ID \
+  --project=moonbank-neptune \
   --region=$REGION \
   --runtime=python312 \
   --entry-point=$FUNCTION_NAME \
@@ -48,4 +49,4 @@ echo " Cloud Function deployed successfully!"
 # 3 Verify Cloud Function
 # ------------------------------
 echo "Verifying Cloud Function..."
-gcloud functions describe $FUNCTION_NAME --region=$REGION
+gcloud functions describe $FUNCTION_NAME --region=$REGION --format="value(serviceAccountEmail)"
