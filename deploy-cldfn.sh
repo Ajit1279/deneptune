@@ -26,16 +26,6 @@ echo "Installing Python dependencies..."
 sudo pip3 install -r $FUNCTION_DIR/requirements.txt
 
 # ------------------------------
-# 2️ Run local Apache Beam pipeline (optional)
-# ------------------------------
-#echo "Launching streaming pipeline (Beam/Dataflow)..."
-#python3 $FUNCTION_DIR/main.py \
-#  --project=$PROJECT_ID \
-#  --region=$REGION \
-#  --input_topic=projects/$PROJECT_ID/topics/$TOPIC_NAME \
-#  --bucket=$PROJECT_ID-bucket
-#
-# ------------------------------
 # 2 Deploy 1st gen Cloud Function
 # ------------------------------
 echo "Deploying Cloud Function (1st gen)..."
@@ -45,11 +35,12 @@ gcloud functions deploy $FUNCTION_NAME \
   --runtime=python312 \
   --entry-point=$FUNCTION_NAME \
   --trigger-topic=$TOPIC_NAME \
+  --service-account=$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com \
+  --set-env-vars=PROJECT_ID=$PROJECT_ID,DATASET=neptune \
   --source=$FUNCTION_DIR \
   --timeout=120s \
   --memory=256MB \
-  --quiet \
-  --no-gen2
+  --quiet
 
 echo " Cloud Function deployed successfully!"
 
