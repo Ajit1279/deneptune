@@ -58,3 +58,10 @@ echo " Cloud Function deployed successfully!"
 # ------------------------------
 echo "Verifying Cloud Function..."
 gcloud functions describe $FUNCTION_NAME --region=$REGION
+
+python3 dataflow_main.py \
+  --project=$GOOGLE_CLOUD_PROJECT \
+  --region=us-central1 \
+  --input_topic=projects/$GOOGLE_CLOUD_PROJECT/topics/neptune-activities \
+  --bucket=$GOOGLE_CLOUD_PROJECT-bucket \
+  --runner=DataflowRunner
