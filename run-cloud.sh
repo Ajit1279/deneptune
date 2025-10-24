@@ -5,8 +5,12 @@ sudo pip3 install -r requirements.txt
 #python3 main.py \
 #  --project=$GOOGLE_CLOUD_PROJECT \
 #  --region=us-central1 \
-#  --input_topic=projects/$GOOGLE_CLOUD_PROJECT/topics/np-activities \
+#  --input_topic=projects/$GOOGLE_CLOUD_PROJECT/topics/neptune-activities \
 #  --bucket=$GOOGLE_CLOUD_PROJECT-bucket
+
+  REGION="us-central1"
+  TOPIC_NAME="neptune-activities"
+  PROJECT_ID=$GOOGLE_CLOUD_PROJECT
 
 echo "Deploying Cloud Function..."
 gcloud functions deploy pubsub_to_bigquery \
