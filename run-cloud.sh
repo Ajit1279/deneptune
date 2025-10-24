@@ -1,67 +1,56 @@
 #!/bin/bash
+set -e
 
 # ------------------------------
-# Environment variables
+#  Environment Variables
 # ------------------------------
-PROJECT_ID=$(gcloud config get-value project)
+PROJECT_ID=${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project)}
 REGION="us-central1"
 TOPIC_NAME="neptune-activities"
+FUNCTION_DIR="neptune-function"   # directory containing main.py and requirements.txt
 FUNCTION_NAME="pubsub_to_bigquery"
-BUCKET_NAME="${PROJECT_ID}-bucket"
-FUNCTION_DIR="neptune-function"
+
+echo "Project: $PROJECT_ID"
+echo "Region: $REGION"
+echo "Topic: $TOPIC_NAME"
+echo "Function directory: $FUNCTION_DIR"
 
 # ------------------------------
-# Check project is set
+# 1️ Install dependencies locally (optional)
 # ------------------------------
-if [[ -z "$PROJECT_ID" ]]; then
-    echo "GCP Project is not set! Run: gcloud config set project PROJECT_ID"
-    exit 1
-fi
-
-echo "Using GCP Project: $PROJECT_ID"
+echo "Installing Python dependencies..."
+sudo pip3 install -r $FUNCTION_DIR/requirements.txt
 
 # ------------------------------
-# Install dependencies
+# 2️ Run local Apache Beam pipeline (optional)
 # ------------------------------
-sudo pip3 install --upgrade -r requirements.txt
+echo "Launching streaming pipeline (Beam/Dataflow)..."
+python3 $FUNCTION_DIR/main.py \
+  --project=$PROJECT_ID \
+  --region=$REGION \
+  --input_topic=projects/$PROJECT_ID/topics/$TOPIC_NAME \
+  --bucket=$PROJECT_ID-bucket
 
 # ------------------------------
-# Prepare clean function directory
+# 3️ Deploy 1st gen Cloud Function
 # ------------------------------
-rm -rf $FUNCTION_DIR
-mkdir $FUNCTION_DIR
-cp main.py requirements.txt $FUNCTION_DIR/
-
-# ------------------------------
-# Enable required APIs
-# ------------------------------
-gcloud services enable \
-    cloudfunctions.googleapis.com \
-    pubsub.googleapis.com \
-    bigquery.googleapis.com \
-    storage.googleapis.com \
-    dataflow.googleapis.com \
-    run.googleapis.com \
-    cloudbuild.googleapis.com \
-    eventarc.googleapis.com \
-    artifactregistry.googleapis.com
-
-# ------------------------------
-# Deploy Cloud Function
-# ------------------------------
+echo "Deploying Cloud Function (1st gen)..."
 gcloud functions deploy $FUNCTION_NAME \
-    --region=$REGION \
-    --runtime=python312 \
-    --entry-point=pubsub_to_bigquery \
-    --trigger-topic=$TOPIC_NAME \
-    --source=$FUNCTION_DIR \
-    --project=$PROJECT_ID \
-    --timeout=120s \
-    --memory=256MB \
-    --gen2
+  --project=$PROJECT_ID \
+  --region=$REGION \
+  --runtime=python312 \
+  --entry-point=$FUNCTION_NAME \
+  --trigger-topic=$TOPIC_NAME \
+  --source=$FUNCTION_DIR \
+  --timeout=120s \
+  --memory=256MB \
+  --quiet \
+  --no-gen2
+
+echo " Cloud Function deployed successfully!"
 
 # ------------------------------
-# Verify deployment
+# 4️ Verify Cloud Function
 # ------------------------------
-echo "Cloud Function deployment status:"
+echo "Verifying Cloud Function..."
 gcloud functions describe $FUNCTION_NAME --region=$REGION
