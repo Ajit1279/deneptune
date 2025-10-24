@@ -16,7 +16,8 @@ gcloud functions deploy pubsub_to_bigquery \
   --trigger-topic=$TOPIC_NAME \
   --source=. \
   --project=$PROJECT_ID \
-  --timeout=60s
+  --timeout=120s
+  --memory=256MB
 
 echo "Cloud Function deployed successfully!"
 echo "Verifying resources..."

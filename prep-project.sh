@@ -9,8 +9,16 @@ else
     echo "Project Name: $GOOGLE_CLOUD_PROJECT"
     gcloud storage buckets create gs://$GOOGLE_CLOUD_PROJECT"-bucket" --soft-delete-duration=0
     
-    gcloud services disable dataflow.googleapis.com --force
-    gcloud services enable dataflow.googleapis.com
+    echo "Enabling required APIs..."
+    gcloud services enable \
+      cloudfunctions.googleapis.com \
+      pubsub.googleapis.com \
+      bigquery.googleapis.com \
+      storage.googleapis.com \
+      dataflow.googleapis.com 
+
+    #gcloud services disable dataflow.googleapis.com --force
+    #gcloud services enable dataflow.googleapis.com
     
     bq mk --location=US --dataset neptune
     bq mk --schema message:STRING -t neptune.rawmessages
