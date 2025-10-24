@@ -28,15 +28,15 @@ sudo pip3 install -r $FUNCTION_DIR/requirements.txt
 # ------------------------------
 # 2️ Run local Apache Beam pipeline (optional)
 # ------------------------------
-echo "Launching streaming pipeline (Beam/Dataflow)..."
-python3 $FUNCTION_DIR/main.py \
-  --project=$PROJECT_ID \
-  --region=$REGION \
-  --input_topic=projects/$PROJECT_ID/topics/$TOPIC_NAME \
-  --bucket=$PROJECT_ID-bucket
-
+#echo "Launching streaming pipeline (Beam/Dataflow)..."
+#python3 $FUNCTION_DIR/main.py \
+#  --project=$PROJECT_ID \
+#  --region=$REGION \
+#  --input_topic=projects/$PROJECT_ID/topics/$TOPIC_NAME \
+#  --bucket=$PROJECT_ID-bucket
+#
 # ------------------------------
-# 3️ Deploy 1st gen Cloud Function
+# 2 Deploy 1st gen Cloud Function
 # ------------------------------
 echo "Deploying Cloud Function (1st gen)..."
 gcloud functions deploy $FUNCTION_NAME \
@@ -54,14 +54,7 @@ gcloud functions deploy $FUNCTION_NAME \
 echo " Cloud Function deployed successfully!"
 
 # ------------------------------
-# 4️ Verify Cloud Function
+# 3 Verify Cloud Function
 # ------------------------------
 echo "Verifying Cloud Function..."
 gcloud functions describe $FUNCTION_NAME --region=$REGION
-
-python3 dataflow_main.py \
-  --project=$GOOGLE_CLOUD_PROJECT \
-  --region=us-central1 \
-  --input_topic=projects/$GOOGLE_CLOUD_PROJECT/topics/neptune-activities \
-  --bucket=$GOOGLE_CLOUD_PROJECT-bucket \
-  --runner=DataflowRunner

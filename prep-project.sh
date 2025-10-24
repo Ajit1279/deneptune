@@ -29,7 +29,7 @@ else
     gcloud pubsub topics create neptune-activities
     gcloud pubsub subscriptions create neptune-activities-test --topic neptune-activities
 
-    bq mk --table neptune.np_test \
+    bq mk --table neptune.parsedmessages \
     id:STRING,ipaddress:STRING,action:STRING,accountnumber:STRING,actionid:INTEGER,name:STRING,actionby:STRING
 
 fi
