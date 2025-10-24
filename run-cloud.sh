@@ -17,6 +17,7 @@ echo "Function directory: $FUNCTION_DIR"
 
 mkdir ~/$FUNCTION_DIR
 cd ~/$FUNCTION_DIR
+cp main.py requirements.txt $FUNCTION_DIR/
 
 # ------------------------------
 # 1️ Install dependencies locally (optional)
