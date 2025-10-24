@@ -7,3 +7,17 @@ python3 main.py \
   --region=us-central1 \
   --input_topic=projects/$GOOGLE_CLOUD_PROJECT/topics/np-activities \
   --bucket=$GOOGLE_CLOUD_PROJECT-bucket
+
+echo "Deploying Cloud Function..."
+gcloud functions deploy pubsub_to_bigquery \
+  --region=$REGION \
+  --runtime=python312 \
+  --entry-point=pubsub_to_bigquery \
+  --trigger-topic=$TOPIC_NAME \
+  --source=. \
+  --project=$PROJECT_ID \
+  --timeout=60s
+
+echo "Cloud Function deployed successfully!"
+echo "Verifying resources..."
+gcloud functions describe pubsub_to_bigquery --region=$REGION
