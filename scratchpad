@@ -1,0 +1,53 @@
+#!/bin/bash
+set -e
+
+# deploy-cldfn.sh (Run in Project B)
+
+# --- Configuration ---
+PROJECT_B_ID=${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project)} # This must be Project B's ID
+REGION="us-central1"
+TOPIC_NAME="activities"
+FUNCTION_DIR="mycloudfunction"
+FUNCTION_NAME="pubsub_to_bigquery_http" # Changed name to reflect HTTP trigger
+# Project A ID must be passed as an environment variable to the function
+PROJECT_A_ID="projecta-id" # <--- **UPDATE THIS WITH THE ACTUAL PROJECT A ID**
+DATASET="mydataset"
+
+echo "Project B ID: $PROJECT_B_ID"
+echo "Project A ID: $PROJECT_A_ID"
+echo "Region: $REGION"
+
+# --- 1. Prepare Function Files ---
+rm -rf $FUNCTION_DIR
+mkdir $FUNCTION_DIR
+cp main.py requirements.txt $FUNCTION_DIR/
+
+# --- 2. Deploy 2nd gen Cloud Function (Recommended for HTTP) ---
+# We use a 2nd Gen Function, which is built on Cloud Run and handles HTTP well.
+# It uses the PROJECT_B_ID@appspot.gserviceaccount.com SA by default.
+echo "Deploying Cloud Function (2nd gen, HTTP trigger)..."
+
+gcloud functions deploy $FUNCTION_NAME \
+    --project=$PROJECT_B_ID \
+    --region=$REGION \
+    --runtime=python312 \
+    --entry-point=pubsub_to_bigquery \
+    --trigger-http \
+    --allow-unauthenticated \
+    --set-env-vars=PROJECT_A_ID=$PROJECT_A_ID,DATASET_ID=$DATASET \
+    --source=$FUNCTION_DIR \
+    --gen2 \
+    --quiet
+
+# --- 3. Get Function URL and SA Email ---
+FUNCTION_URL=$(gcloud functions describe $FUNCTION_NAME --region=$REGION --gen2 --format='value(serviceConfig.uri)')
+CF_RUNTIME_SA_B=$(gcloud functions describe $FUNCTION_NAME --region=$REGION --gen2 --format='value(serviceConfig.serviceAccountEmail)')
+
+echo " "
+echo "Cloud Function deployed successfully!"
+echo "Function URL: $FUNCTION_URL"
+echo "Function SA: $CF_RUNTIME_SA_B"
+echo " "
+echo "NEXT STEP: Run the Final Push Setup in Project A"
+
+

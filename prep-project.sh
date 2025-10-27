@@ -9,23 +9,9 @@ else
     echo "Project Name: $GOOGLE_CLOUD_PROJECT"
 
     PROJECT_ID=$(gcloud config get-value project)
-    SA_NAME="neptunesa"
+    #SA_NAME="neptunesa"
     DATASET="neptune"
 
-# Create service account
-    gcloud iam service-accounts create $SA_NAME --display-name="Neptune Function Service Account"
-
-# Grant BigQuery Data Editor to this service account
-    gcloud projects add-iam-policy-binding $PROJECT_ID --member="serviceAccount:$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com" \
-    --role="roles/bigquery.dataEditor"
-
-# Grant Pub/Sub Subscriber (so function can receive messages)
-    gcloud projects add-iam-policy-binding $PROJECT_ID \
-    --member="serviceAccount:$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com" \
-    --role="roles/pubsub.subscriber"
-
-    gcloud storage buckets create gs://$GOOGLE_CLOUD_PROJECT"-bucket" --soft-delete-duration=0
-    
     echo "Enabling required APIs..."
     gcloud services enable \
       cloudfunctions.googleapis.com \
@@ -37,6 +23,25 @@ else
       cloudbuild.googleapis.com \
       eventarc.googleapis.com \
       artifactregistry.googleapis.com
+
+# Commented out as the requirement is to use an default service account
+# Create service account
+#    gcloud iam service-accounts create $SA_NAME --display-name="Neptune Function Service Account"
+
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
+echo $PROJECT_NUMBER
+
+# Grant BigQuery Data Editor to the default service account
+    gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
+    --role="roles/bigquery.dataEditor"
+
+# Grant Pub/Sub Subscriber (so function can receive messages)
+    gcloud projects add-iam-policy-binding $PROJECT_ID \
+    --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
+    --role="roles/pubsub.subscriber"
+
+    gcloud storage buckets create gs://$GOOGLE_CLOUD_PROJECT"-bucket" --soft-delete-duration=0
 
     #gcloud services disable dataflow.googleapis.com --force
     #gcloud services enable dataflow.googleapis.com
@@ -57,13 +62,13 @@ else
     --topic projects/moonbank-neptune/topics/activities \
     --push-endpoint=https://pubsub.googleapis.com/v1/projects/$GOOGLE_CLOUD_PROJECT/topics/neptune-activities:publish
 
-    gcloud iam service-accounts add-iam-policy-binding \
-    $SA_NAME@$PROJECT_ID.iam.gserviceaccount.com \
-    --member="serviceAccount:$PROJECT_ID@appspot.gserviceaccount.com" \
-    --role="roles/iam.serviceAccountTokenCreator"
+    #gcloud iam service-accounts add-iam-policy-binding \
+    #$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com \
+    #--member="serviceAccount:$PROJECT_ID@appspot.gserviceaccount.com" \
+    #--role="roles/iam.serviceAccountTokenCreator"
   
     bq update --dataset \
-    --add_iam_member="serviceAccount:$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com:roles/bigquery.dataEditor" \
+    --add_iam_member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com:roles/bigquery.dataEditor" \
     $DATASET:neptune
 
 fi
