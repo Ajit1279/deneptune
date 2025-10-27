@@ -28,8 +28,16 @@ else
 # Create service account
 #    gcloud iam service-accounts create $SA_NAME --display-name="Neptune Function Service Account"
 
-PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
-echo $PROJECT_NUMBER
+    PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format="value(projectNumber)")
+    echo $PROJECT_NUMBER
+
+    COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+    gcloud iam service-accounts add-iam-policy-binding $COMPUTE_SA \
+    --member="user:$(gcloud config get-value account)" \
+    --role="roles/iam.serviceAccountTokenCreator"
+
+    gcloud config set auth/impersonate_service_account $COMPUTE_SA
 
 # Grant BigQuery Data Editor to the default service account
     gcloud projects add-iam-policy-binding $PROJECT_ID \
