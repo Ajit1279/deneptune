@@ -1,3 +1,4 @@
+
 #!/bin/bash
 set -e
 
@@ -115,7 +116,9 @@ gcloud functions deploy ${FUNCTION_NAME} \
   --set-env-vars="BQ_PROJECT=${PROJECT_ID},BQ_DATASET=${BQ_DATASET}" \
   --max-instances=2 \
   --memory=256MB \
-  --quiet
+  --quiet \
+  --gen2
+
 
 echo "Cloud Function deployed successfully!"
 echo "----------------------------------------------"
