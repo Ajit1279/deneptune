@@ -4,49 +4,62 @@ set -e
 # ------------------------------
 #  Environment Variables
 # ------------------------------
-PROJECT_ID=${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project)}
+LAB_PROJECT_ID=${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project)}
+TARGET_PROJECT_ID="moonbank-neptune"
 REGION="us-central1"
 TOPIC_NAME="neptune-activities"
-FUNCTION_DIR="neptune-function"   # directory containing main.py and requirements.txt
+FUNCTION_DIR="neptune-function"
 FUNCTION_NAME="pubsub_to_bigquery"
 
-echo "Project: $PROJECT_ID"
+# Get lab project number and default compute SA
+LAB_PROJECT_NUMBER=$(gcloud projects describe $LAB_PROJECT_ID --format="value(projectNumber)")
+DEFAULT_SA="${LAB_PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
+echo "Lab Project: $LAB_PROJECT_ID"
+echo "Target Project: $TARGET_PROJECT_ID"
 echo "Region: $REGION"
 echo "Topic: $TOPIC_NAME"
-echo "Function directory: $FUNCTION_DIR"
+echo "Using Service Account: $DEFAULT_SA"
 
+# ------------------------------
+# 1 Prepare function source
+# ------------------------------
 rm -rf $FUNCTION_DIR
 mkdir $FUNCTION_DIR
 cp main.py requirements.txt $FUNCTION_DIR/
 
 # ------------------------------
-# 1️ Install dependencies locally (optional)
+# 2 Install dependencies locally (optional)
 # ------------------------------
 echo "Installing Python dependencies..."
 sudo pip3 install -r $FUNCTION_DIR/requirements.txt
 
 # ------------------------------
-# 2 Deploy 1st gen Cloud Function
+# 3 Deploy Cloud Function (in moonbank-neptune)
 # ------------------------------
-echo "Deploying Cloud Function (1st gen)..."
+echo "Deploying Cloud Function to $TARGET_PROJECT_ID ..."
 
 gcloud functions deploy $FUNCTION_NAME \
-  --project=moonbank-neptune \
+  --project=$TARGET_PROJECT_ID \
   --region=$REGION \
   --runtime=python312 \
   --entry-point=$FUNCTION_NAME \
   --trigger-topic=$TOPIC_NAME \
-  --service-account=$SA_NAME@$PROJECT_ID.iam.gserviceaccount.com \
-  --set-env-vars=PROJECT_ID=$PROJECT_ID,DATASET=neptune \
+  --service-account=$DEFAULT_SA \
+  --set-env-vars=PROJECT_ID=$TARGET_PROJECT_ID,DATASET=neptune \
   --source=$FUNCTION_DIR \
   --timeout=120s \
   --memory=256MB \
-  --quiet
+  --quiet \
+  --impersonate-service-account=$DEFAULT_SA
 
-echo " Cloud Function deployed successfully!"
+echo "✅ Cloud Function deployed successfully in $TARGET_PROJECT_ID!"
 
 # ------------------------------
-# 3 Verify Cloud Function
+# 4 Verify Cloud Function
 # ------------------------------
-echo "Verifying Cloud Function..."
-gcloud functions describe $FUNCTION_NAME --region=$REGION --format="value(serviceAccountEmail)"
+echo "Verifying Cloud Function service account..."
+gcloud functions describe $FUNCTION_NAME \
+  --region=$REGION \
+  --project=$TARGET_PROJECT_ID \
+  --format="value(serviceAccountEmail)"
