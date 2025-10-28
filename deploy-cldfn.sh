@@ -1,65 +1,127 @@
 #!/bin/bash
 set -e
 
-# ------------------------------
-#  Environment Variables
-# ------------------------------
-LAB_PROJECT_ID=${GOOGLE_CLOUD_PROJECT:-$(gcloud config get-value project)}
-TARGET_PROJECT_ID="moonbank-neptune"
+# ==========================================
+# Configuration
+# ==========================================
+PROJECT_ID=$(gcloud config get-value project)
 REGION="us-central1"
-TOPIC_NAME="neptune-activities"
-FUNCTION_DIR="neptune-function"
-FUNCTION_NAME="pubsub_to_bigquery"
+TOPIC="neptune-activities"
+BQ_DATASET="neptune"
+FUNCTION_NAME="neptuneProcessor"
+SA_NAME="netunesa"
+ENTRY_POINT="process_pubsub"
+RUNTIME="python312"
 
-# Get lab project number and default compute SA
-LAB_PROJECT_NUMBER=$(gcloud projects describe $LAB_PROJECT_ID --format="value(projectNumber)")
-DEFAULT_SA="${LAB_PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+echo "=============================================="
+echo "Starting Cloud Function Deployment (Local Project)"
+echo "----------------------------------------------"
+echo "Project: ${PROJECT_ID}"
+echo "Region: ${REGION}"
+echo "Topic: ${TOPIC}"
+echo "=============================================="
 
-echo "Lab Project: $LAB_PROJECT_ID"
-echo "Target Project: $TARGET_PROJECT_ID"
-echo "Region: $REGION"
-echo "Topic: $TOPIC_NAME"
-echo "Using Service Account: $DEFAULT_SA"
+# ==========================================
+# Step 1: Create Service Account (if missing)
+# ==========================================
+echo "Creating service account ${SA_NAME} in ${PROJECT_ID}..."
+if ! gcloud iam service-accounts describe ${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com --project=${PROJECT_ID} &>/dev/null; then
+  gcloud iam service-accounts create ${SA_NAME} \
+    --display-name "Neptune Data Service Account" \
+    --project=${PROJECT_ID}
+else
+  echo "Service account already exists."
+fi
 
-# ------------------------------
-# 1 Prepare function source
-# ------------------------------
-rm -rf $FUNCTION_DIR
-mkdir $FUNCTION_DIR
-cp main.py requirements.txt $FUNCTION_DIR/
+# ==========================================
+# Step 2: Create BigQuery Dataset (if missing)
+# ==========================================
+echo "Ensuring BigQuery dataset ${BQ_DATASET} exists..."
+if ! bq --project_id=${PROJECT_ID} ls ${BQ_DATASET} &>/dev/null; then
+  bq --project_id=${PROJECT_ID} mk --dataset ${PROJECT_ID}:${BQ_DATASET}
+else
+  echo "Dataset already exists."
+fi
 
-# ------------------------------
-# 2 Install dependencies locally (optional)
-# ------------------------------
-echo "Installing Python dependencies..."
-sudo pip3 install -r $FUNCTION_DIR/requirements.txt
+# ==========================================
+# Step 3: Grant BigQuery Data Editor role to SA
+# ==========================================
+echo "Granting BigQuery Data Editor role to ${SA_NAME}..."
+if ! gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --role="roles/bigquery.dataEditor" --quiet; then
+  echo "Could not update IAM policy (likely due to lab restrictions). Continuing..."
+fi
 
-# ------------------------------
-# 3 Deploy Cloud Function (in moonbank-neptune)
-# ------------------------------
-echo "Deploying Cloud Function to $TARGET_PROJECT_ID ..."
+# ==========================================
+# Step 4: Prepare Cloud Function Source Code
+# ==========================================
+echo "Preparing Cloud Function source..."
+mkdir -p cf-src
+cat > cf-src/main.py <<'EOF'
+import base64
+import json
+from google.cloud import bigquery
 
-gcloud functions deploy $FUNCTION_NAME \
-  --project=$TARGET_PROJECT_ID \
-  --region=$REGION \
-  --runtime=python312 \
-  --entry-point=$FUNCTION_NAME \
-  --trigger-topic=$TOPIC_NAME \
-  --service-account=$DEFAULT_SA \
-  --set-env-vars=PROJECT_ID=$TARGET_PROJECT_ID,DATASET=neptune \
-  --source=$FUNCTION_DIR \
-  --timeout=120s \
+def process_pubsub(event, context):
+    """Triggered from a message on a Pub/Sub topic."""
+    try:
+        if 'data' in event:
+            message = base64.b64decode(event['data']).decode('utf-8')
+            record = json.loads(message)
+        else:
+            record = {"error": "no data"}
+        
+        client = bigquery.Client()
+        table_id = f"{client.project}.neptune.rawmessages"
+        errors = client.insert_rows_json(table_id, [record])
+        if errors:
+            print(f"BigQuery insertion errors: {errors}")
+        else:
+            print(f"Inserted record: {record}")
+    except Exception as e:
+        print(f"Error processing message: {e}")
+EOF
+
+cat > cf-src/requirements.txt <<'EOF'
+google-cloud-bigquery
+EOF
+
+# ==========================================
+# Step 5: Ensure Pub/Sub Topic Exists
+# ==========================================
+echo "Ensuring Pub/Sub topic '${TOPIC}' exists..."
+if ! gcloud pubsub topics describe ${TOPIC} --project=${PROJECT_ID} &>/dev/null; then
+  gcloud pubsub topics create ${TOPIC} --project=${PROJECT_ID}
+  echo "Topic created."
+else
+  echo "Topic already exists."
+fi
+
+# ==========================================
+# Step 6: Deploy Cloud Function (within same project)
+# ==========================================
+echo "Deploying Cloud Function to ${PROJECT_ID}..."
+echo "   (Using max-instances=2 to control scaling)"
+
+gcloud functions deploy ${FUNCTION_NAME} \
+  --project=${PROJECT_ID} \
+  --region=${REGION} \
+  --runtime=${RUNTIME} \
+  --trigger-topic=${TOPIC} \
+  --entry-point=${ENTRY_POINT} \
+  --service-account="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --source=cf-src \
+  --set-env-vars="BQ_PROJECT=${PROJECT_ID},BQ_DATASET=${BQ_DATASET}" \
+  --max-instances=2 \
   --memory=256MB \
-  --quiet \
-  --impersonate-service-account=$DEFAULT_SA
+  --quiet
 
-echo "✅ Cloud Function deployed successfully in $TARGET_PROJECT_ID!"
-
-# ------------------------------
-# 4 Verify Cloud Function
-# ------------------------------
-echo "Verifying Cloud Function service account..."
-gcloud functions describe $FUNCTION_NAME \
-  --region=$REGION \
-  --project=$TARGET_PROJECT_ID \
-  --format="value(serviceAccountEmail)"
+echo "Cloud Function deployed successfully!"
+echo "----------------------------------------------"
+echo "Function: ${FUNCTION_NAME}"
+echo "Project: ${PROJECT_ID}"
+echo "Dataset: ${PROJECT_ID}.${BQ_DATASET}"
+echo "Topic: ${PROJECT_ID}.${TOPIC}"
+echo "Max Instances: 2"
+echo "=============================================="
