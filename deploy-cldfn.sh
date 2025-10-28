@@ -11,7 +11,7 @@ TOPIC="neptune-activities"
 BQ_DATASET="neptune"
 FUNCTION_NAME="neptuneProcessor"
 SA_NAME="netunesa"
-ENTRY_POINT="process_pubsub"
+ENTRY_POINT="pubsub_to_bigquery"
 RUNTIME="python312"
 
 echo "=============================================="
