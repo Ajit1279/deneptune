@@ -63,25 +63,54 @@ echo "Preparing Cloud Function source..."
 mkdir -p cf-src
 cat > cf-src/main.py <<'EOF'
 import base64
-import json
 from google.cloud import bigquery
 
 def pubsub_to_bigquery(event, context):
     """Triggered from a message on a Pub/Sub topic."""
     try:
-        if 'data' in event:
-            message = base64.b64decode(event['data']).decode('utf-8')
-            record = json.loads(message)
-        else:
-            record = {"error": "no data"}
-        
+        if 'data' not in event:
+            print("No data found in event.")
+            return
+
+        # Decode Pub/Sub message
+        message = base64.b64decode(event['data']).decode('utf-8').strip()
+        print(f"Received message: {message}")
+
+        # Initialize BigQuery client
         client = bigquery.Client()
-        table_id = f"{client.project}.neptune.rawmessages"
-        errors = client.insert_rows_json(table_id, [record])
-        if errors:
-            print(f"BigQuery insertion errors: {errors}")
+
+        # Insert raw message into rawmessages table
+        raw_table = f"{client.project}.neptune.rawmessages"
+        raw_record = {"message": message}
+        raw_errors = client.insert_rows_json(raw_table, [raw_record])
+        if raw_errors:
+            print(f"BigQuery raw insertion errors: {raw_errors}")
         else:
-            print(f"Inserted record: {record}")
+            print(f"Inserted raw message: {message}")
+
+        # Parse CSV message for parsedmessages table
+        fields = message.split(',')
+        if len(fields) != 7:
+            print(f"Unexpected field count ({len(fields)}): {fields}")
+            return
+
+        parsed_record = {
+            "id": fields[0],
+            "ipaddress": fields[1],
+            "action": fields[2],
+            "accountnumber": fields[3],
+            "actionid": int(fields[4]),
+            "name": fields[5],
+            "actionby": fields[6],
+        }
+
+        parsed_table = f"{client.project}.neptune.parsedmessages"
+        parsed_errors = client.insert_rows_json(parsed_table, [parsed_record])
+        if parsed_errors:
+            print(f"BigQuery parsed insertion errors: {parsed_errors}")
+        else:
+            print(f"Inserted parsed record: {parsed_record}")
+
     except Exception as e:
         print(f"Error processing message: {e}")
 EOF
@@ -123,8 +152,8 @@ gcloud functions deploy ${FUNCTION_NAME} \
   --max-instances=2 \
   --memory=256MB \
   --quiet \
-  --gen2 \
-  --allow-unauthenticated
+  --gen2
+#  --allow-unauthenticated
 
 sleep 60
 
