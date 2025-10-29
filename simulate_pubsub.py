@@ -1,8 +1,11 @@
 import time
 import random
 from google.cloud import pubsub_v1
+import subprocess
 
-project_id = $(gcloud config get-value project)
+project_id = subprocess.getoutput("gcloud config get-value project").strip()
+print("Project ID:", project_id)
+
 topic_id = "neptune-activities"
 
 publisher = pubsub_v1.PublisherClient()
