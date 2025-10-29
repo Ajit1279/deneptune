@@ -44,7 +44,10 @@ else
       --topic projects/moonbank-neptune/topics/activities \
       --push-endpoint="https://pubsub.googleapis.com/v1/projects/${GOOGLE_CLOUD_PROJECT}/topics/neptune-activities:publish" 2>/dev/null || echo "Cross-project subscription exists."
  
+    echo "Creating pub-sub service account"
 
+    PUBSUB_SA="service-${PROJECT_NUMBER}@gcp-sa-pubsub.iam.gserviceaccount.com"
+    
     echo "Pre-project setup completed successfully."
     echo "Use the default Compute SA in your Cloud Function deploy step:"
     echo "   gcloud functions deploy FUNCTION_NAME \\"

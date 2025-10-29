@@ -128,3 +128,20 @@ echo "Dataset: ${PROJECT_ID}.${BQ_DATASET}"
 echo "Topic: ${PROJECT_ID}.${TOPIC}"
 echo "Max Instances: 2"
 echo "=============================================="
+
+echo "Granting Pub/Sub service account permission to invoke the Cloud Function..."
+
+gcloud run services add-iam-policy-binding ${FUNCTION_NAME} \
+  --region=${REGION} \
+  --member="serviceAccount:${PUBSUB_SA}" \
+  --role="roles/run.invoker" \
+  --project=${PROJECT_ID}
+
+echo "Confirm the binding is added"
+
+gcloud run services get-iam-policy ${FUNCTION_NAME} --region=${REGION} --project=${PROJECT_ID}
+
+echo "Deployment script completed."
+
+
+
