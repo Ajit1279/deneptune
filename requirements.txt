@@ -1,3 +1,2 @@
-functions-framework
 google-cloud-bigquery>=3.10.0
 google-cloud-pubsub
