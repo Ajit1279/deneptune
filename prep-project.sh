@@ -24,7 +24,7 @@ else
 
     PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")
     COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
-    echo "🔹 Using default Compute Engine service account: $COMPUTE_SA"
+    echo "Using default Compute Engine service account: $COMPUTE_SA"
 
     echo "Creating Cloud Storage bucket..."
     gcloud storage buckets create "gs://${GOOGLE_CLOUD_PROJECT}-bucket" --soft-delete-duration=0 2>/dev/null || echo "Bucket already exists."
@@ -35,18 +35,22 @@ else
     bq mk --table "$DATASET.parsedmessages" \
       id:STRING,ipaddress:STRING,action:STRING,accountnumber:STRING,actionid:INTEGER,name:STRING,actionby:STRING 2>/dev/null || echo "parsedmessages exists."
 
-    echo "Creating Pub/Sub topics and subscriptions..."
-    gcloud pubsub topics create neptune-activities 2>/dev/null || echo "Topic exists."
-    gcloud pubsub subscriptions create neptune-activities-test --topic neptune-activities 2>/dev/null || echo "Subscription exists."
+#    echo "Creating Pub/Sub topics and subscriptions..."
+#    gcloud pubsub topics create neptune-activities 2>/dev/null || echo "Topic exists."
+#    gcloud pubsub subscriptions create neptune-activities-test --topic neptune-activities 2>/dev/null || echo "Subscription exists."
 
-    echo "Linking to Moonbank topic..."
-    gcloud pubsub subscriptions create neptune-activities \
-      --topic projects/moonbank-neptune/topics/activities \
-      --push-endpoint="https://pubsub.googleapis.com/v1/projects/${GOOGLE_CLOUD_PROJECT}/topics/neptune-activities:publish" 2>/dev/null || echo "Cross-project subscription exists."
+    #echo "Linking to Moonbank topic..."
+    #gcloud pubsub subscriptions create neptune-activities \
+    #  --topic projects/moonbank-neptune/topics/activities \
+    #  --push-endpoint="https://pubsub.googleapis.com/v1/projects/${GOOGLE_CLOUD_PROJECT}/topics/neptune-activities:publish" 2>/dev/null || echo "Cross-project subscription exists."
  
-    echo "Creating pub-sub service account"
+#    echo "Creating pub-sub service account"
 
-    PUBSUB_SA="service-${PROJECT_NUMBER}@gcp-sa-pubsub.iam.gserviceaccount.com"
+#    PUBSUB_SA="service-${PROJECT_NUMBER}@gcp-sa-pubsub.iam.gserviceaccount.com"
+
+#    gcloud iam service-accounts create ${PUBSUB_SA} \
+#    --display-name "Pub Sub Service Account" \
+#    --project=${PROJECT_ID}
     
     echo "Pre-project setup completed successfully."
     echo "Use the default Compute SA in your Cloud Function deploy step:"

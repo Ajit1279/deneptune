@@ -9,10 +9,12 @@ PROJECT_ID=$(gcloud config get-value project)
 REGION="us-central1"
 TOPIC="neptune-activities"
 BQ_DATASET="neptune"
-FUNCTION_NAME="neptuneProcessor"
-SA_NAME="netunesa"
+FUNCTION_NAME="neptuneprocessor"
+#SA_NAME="netunesa"
 ENTRY_POINT="pubsub_to_bigquery"
 RUNTIME="python312"
+SUBSCRIPTION="neptune-activities-sub"
+
 
 echo "=============================================="
 echo "Starting Cloud Function Deployment (Local Project)"
@@ -25,34 +27,34 @@ echo "=============================================="
 # ==========================================
 # Step 1: Create Service Account (if missing)
 # ==========================================
-echo "Creating service account ${SA_NAME} in ${PROJECT_ID}..."
-if ! gcloud iam service-accounts describe ${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com --project=${PROJECT_ID} &>/dev/null; then
-  gcloud iam service-accounts create ${SA_NAME} \
-    --display-name "Neptune Data Service Account" \
-    --project=${PROJECT_ID}
-else
-  echo "Service account already exists."
-fi
+#echo "Creating service account ${SA_NAME} in ${PROJECT_ID}..."
+#if ! gcloud iam service-accounts describe ${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com --project=${PROJECT_ID} &>/dev/null; then
+#  gcloud iam service-accounts create ${SA_NAME} \
+#    --display-name "Neptune Data Service Account" \
+#    --project=${PROJECT_ID}
+#else
+#  echo "Service account already exists."
+#fi
 
 # ==========================================
 # Step 2: Create BigQuery Dataset (if missing)
 # ==========================================
-echo "Ensuring BigQuery dataset ${BQ_DATASET} exists..."
-if ! bq --project_id=${PROJECT_ID} ls ${BQ_DATASET} &>/dev/null; then
-  bq --project_id=${PROJECT_ID} mk --dataset ${PROJECT_ID}:${BQ_DATASET}
-else
-  echo "Dataset already exists."
-fi
+#echo "Ensuring BigQuery dataset ${BQ_DATASET} exists..."
+#if ! bq --project_id=${PROJECT_ID} ls ${BQ_DATASET} &>/dev/null; then
+#  bq --project_id=${PROJECT_ID} mk --dataset ${PROJECT_ID}:${BQ_DATASET}
+#else
+#  echo "Dataset already exists."
+#fi
 
 # ==========================================
 # Step 3: Grant BigQuery Data Editor role to SA
 # ==========================================
-echo "Granting BigQuery Data Editor role to ${SA_NAME}..."
-if ! gcloud projects add-iam-policy-binding ${PROJECT_ID} \
-  --member="serviceAccount:${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
-  --role="roles/bigquery.dataEditor" --quiet; then
-  echo "Could not update IAM policy (likely due to lab restrictions). Continuing..."
-fi
+#echo "Granting BigQuery Data Editor role to ${SA_NAME}..."
+#if ! gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+#  --member="serviceAccount:${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
+#  --role="roles/bigquery.dataEditor" --quiet; then
+#  echo "Could not update IAM policy (likely due to lab restrictions). Continuing..."
+#fi
 
 # ==========================================
 # Step 4: Prepare Cloud Function Source Code
@@ -105,20 +107,26 @@ fi
 echo "Deploying Cloud Function to ${PROJECT_ID}..."
 echo "   (Using max-instances=2 to control scaling)"
 
+
+PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")
+COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+
 gcloud functions deploy ${FUNCTION_NAME} \
   --project=${PROJECT_ID} \
   --region=${REGION} \
   --runtime=${RUNTIME} \
   --trigger-topic=${TOPIC} \
   --entry-point=${ENTRY_POINT} \
-  --service-account="${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com" \
+  --service-account="${COMPUTE_SA}" \
   --source=cf-src \
   --set-env-vars="BQ_PROJECT=${PROJECT_ID},BQ_DATASET=${BQ_DATASET}" \
   --max-instances=2 \
   --memory=256MB \
   --quiet \
-  --gen2
+  --gen2 \
+  --allow-unauthenticated
 
+sleep 60
 
 echo "Cloud Function deployed successfully!"
 echo "----------------------------------------------"
@@ -129,17 +137,30 @@ echo "Topic: ${PROJECT_ID}.${TOPIC}"
 echo "Max Instances: 2"
 echo "=============================================="
 
-echo "Granting Pub/Sub service account permission to invoke the Cloud Function..."
+#echo "Creating Pub/Sub topic..."
+#gcloud pubsub topics create ${TOPIC} --project=${PROJECT_ID} || echo "Topic already exists."
 
-gcloud run services add-iam-policy-binding ${FUNCTION_NAME} \
-  --region=${REGION} \
-  --member="serviceAccount:${PUBSUB_SA}" \
-  --role="roles/run.invoker" \
-  --project=${PROJECT_ID}
 
-echo "Confirm the binding is added"
+echo "Creating Pub/Sub subscription with push to Cloud Function..."
+gcloud pubsub subscriptions create ${SUBSCRIPTION} \
+  --topic=projects/${PROJECT_ID}/topics/${TOPIC} \
+  --push-endpoint="https://${REGION}-${PROJECT_ID}.cloudfunctions.net/${FUNCTION_NAME}" \
+  --push-auth-service-account="${COMPUTE_SA}" \
+  --project=${PROJECT_ID} || echo "Subscription already exists."
 
-gcloud run services get-iam-policy ${FUNCTION_NAME} --region=${REGION} --project=${PROJECT_ID}
+echo "Granting Pub/Sub publish permission to Compute Engine SA..."
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${COMPUTE_SA}" \
+  --role="roles/pubsub.publisher" \
+  --quiet
+
+echo "Granting BigQuery Data Editor role to ${COMPUTE_SA}..."
+if ! gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${COMPUTE_SA}" \
+  --role="roles/bigquery.dataEditor" --quiet; then
+  echo "Could not update IAM policy (likely due to lab restrictions). Continuing..."
+fi
+echo "Pub/Sub setup complete."
 
 echo "Deployment script completed."
 
