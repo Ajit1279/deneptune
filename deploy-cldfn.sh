@@ -64,7 +64,7 @@ import base64
 import json
 from google.cloud import bigquery
 
-def process_pubsub(event, context):
+def pubsub_to_bigquery(event, context):
     """Triggered from a message on a Pub/Sub topic."""
     try:
         if 'data' in event:
